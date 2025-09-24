@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package laval.manager.v1;
+
+enum PortMappingMode {
+    PORT_MAPPING_MODE_UNSPECIFIED = 0;
+    PORT_MAPPING_MODE_SERVER = 1;
+    PORT_MAPPING_MODE_CLIENT = 2;
+}
+
+message PortMappingConfig {
+    PortMappingMode mode = 1;
+    string config_json = 2;
+}
+
+message GetNodeConfigRequest {
+    string name = 1;
+}
+
+message GetNodeConfigResponse {
+    string name = 1;
+    optional PortMappingConfig port_mapping = 2;
+}
+
+service NodeManager {
+    rpc GetNodeConfig(GetNodeConfigRequest) returns (GetNodeConfigResponse);
+}

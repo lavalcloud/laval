@@ -3,6 +3,8 @@ members = [
     "crates/node",
     "crates/client",
     "crates/manager",
+    "crates/model",
+    "crates/proto",
 ]
 resolver = "2"
 
@@ -41,5 +43,7 @@ pingora-core = { path = "thirdparty/pingora/pingora-core", default-features = fa
 pingora-proxy = { path = "thirdparty/pingora/pingora-proxy", default-features = false, features = ["rustls"] }
 pingora-http = { path = "thirdparty/pingora/pingora-http" }
 pingora-error = { path = "thirdparty/pingora/pingora-error" }
-rathole = { path = "thirdparty/rathole", default-features = false, features = ["server", "client", "noise"] }
+rathole = { path = "crates/rathole", default-features = false, features = ["server", "client", "noise"] }
+tonic = { version = "0.11", features = ["transport"] }
+prost = "0.12"
 

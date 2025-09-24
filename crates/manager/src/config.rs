@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
+use laval_model::PortMappingSpec;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use tokio::fs;
@@ -21,6 +22,8 @@ pub struct NodeRecord {
     pub description: Option<String>,
     #[serde(default)]
     pub tags: Vec<String>,
+    #[serde(default)]
+    pub port_mapping: Option<PortMappingSpec>,
 }
 
 impl ManagerConfig {

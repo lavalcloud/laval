@@ -255,7 +255,7 @@ impl Config {
         }
     }
 
-    fn validate_server_config(server: &mut ServerConfig) -> Result<()> {
+    pub(crate) fn validate_server_config(server: &mut ServerConfig) -> Result<()> {
         // Validate services
         for (name, s) in &mut server.services {
             s.name = name.clone();
@@ -272,7 +272,7 @@ impl Config {
         Ok(())
     }
 
-    fn validate_client_config(client: &mut ClientConfig) -> Result<()> {
+    pub(crate) fn validate_client_config(client: &mut ClientConfig) -> Result<()> {
         // Validate services
         for (name, s) in &mut client.services {
             s.name = name.clone();
@@ -292,7 +292,10 @@ impl Config {
         Ok(())
     }
 
-    fn validate_transport_config(config: &TransportConfig, is_server: bool) -> Result<()> {
+    pub(crate) fn validate_transport_config(
+        config: &TransportConfig,
+        is_server: bool,
+    ) -> Result<()> {
         config
             .tcp
             .proxy

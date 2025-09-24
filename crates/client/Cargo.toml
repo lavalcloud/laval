@@ -13,3 +13,4 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 rathole = { workspace = true }
 parking_lot = { workspace = true }
+laval-model = { path = "../model" }

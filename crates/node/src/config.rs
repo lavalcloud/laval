@@ -5,12 +5,16 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use serde::Deserialize;
 
+use laval_model::PortMappingSpec;
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct NodeConfig {
     #[serde(default)]
     pub reverse_proxy: ReverseProxyConfig,
     #[serde(default)]
-    pub port_mapping: Option<PortMappingConfig>,
+    pub port_mapping: Option<PortMappingSpec>,
+    #[serde(default)]
+    pub manager: Option<ManagerLinkConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -32,19 +36,9 @@ pub struct TlsConfig {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct PortMappingConfig {
-    /// Path to a Rathole compatible configuration file.
-    pub config_path: PathBuf,
-    /// When set to true, the node service will treat Rathole as a server
-    /// endpoint. Otherwise it will run in client mode.
-    #[serde(default = "PortMappingConfig::default_is_server")]
-    pub server: bool,
-}
-
-impl PortMappingConfig {
-    const fn default_is_server() -> bool {
-        true
-    }
+pub struct ManagerLinkConfig {
+    pub endpoint: String,
+    pub node_name: String,
 }
 
 impl Default for ReverseProxyConfig {
