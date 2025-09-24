@@ -1,5 +1,5 @@
 mod cli;
-mod config;
+pub mod config;
 mod config_watcher;
 mod constants;
 mod helper;
@@ -10,9 +10,10 @@ mod transport;
 pub use cli::Cli;
 use cli::KeypairType;
 pub use config::Config;
+use config::Config as RatholeConfig;
 pub use constants::UDP_BUFFER_SIZE;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use tokio::sync::{broadcast, mpsc};
 use tracing::{debug, info};
 
@@ -27,6 +28,67 @@ mod server;
 use server::run_server;
 
 use crate::config_watcher::{ConfigChange, ConfigWatcherHandle};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InstanceMode {
+    Server,
+    Client,
+}
+
+pub fn sanitize_config(mut config: RatholeConfig, mode: InstanceMode) -> Result<RatholeConfig> {
+    match mode {
+        InstanceMode::Server => {
+            let server = config
+                .server
+                .as_mut()
+                .ok_or_else(|| anyhow!("missing server configuration"))?;
+            config::Config::validate_server_config(server)?;
+            config.client = None;
+        }
+        InstanceMode::Client => {
+            let client = config
+                .client
+                .as_mut()
+                .ok_or_else(|| anyhow!("missing client configuration"))?;
+            config::Config::validate_client_config(client)?;
+            config.server = None;
+        }
+    }
+    Ok(config)
+}
+
+pub async fn run_with_config(
+    config: RatholeConfig,
+    mode: InstanceMode,
+    shutdown_rx: broadcast::Receiver<bool>,
+) -> Result<()> {
+    fdlimit::raise_fd_limit();
+    let config = sanitize_config(config, mode)?;
+    let (_update_tx, update_rx) = mpsc::channel(1);
+
+    match mode {
+        InstanceMode::Client => {
+            #[cfg(not(feature = "client"))]
+            {
+                crate::helper::feature_not_compile("client");
+            }
+            #[cfg(feature = "client")]
+            {
+                run_client(config, shutdown_rx, update_rx).await
+            }
+        }
+        InstanceMode::Server => {
+            #[cfg(not(feature = "server"))]
+            {
+                crate::helper::feature_not_compile("server");
+            }
+            #[cfg(feature = "server")]
+            {
+                run_server(config, shutdown_rx, update_rx).await
+            }
+        }
+    }
+}
 
 const DEFAULT_CURVE: KeypairType = KeypairType::X25519;
 

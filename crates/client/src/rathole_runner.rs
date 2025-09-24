@@ -5,7 +5,8 @@ use tokio::runtime::Builder;
 use tokio::sync::broadcast;
 use tracing::{error, info};
 
-use crate::config::PortMappingConfig;
+use laval_model::PortMappingSpec;
+use rathole::InstanceMode;
 
 pub struct RatholeHandle {
     shutdown: broadcast::Sender<bool>,
@@ -23,18 +24,16 @@ impl RatholeHandle {
     }
 }
 
-pub fn spawn_rathole(config: &PortMappingConfig) -> Result<RatholeHandle> {
-    let mut cli = rathole::Cli::default();
-    cli.config_path = Some(config.config_path.clone());
-    cli.server = config.server;
-    cli.client = !config.server;
-
+pub fn spawn_rathole(spec: &PortMappingSpec) -> Result<RatholeHandle> {
+    let (config, mode) = spec.clone().into_rathole()?;
     let (shutdown_tx, shutdown_rx) = broadcast::channel(4);
 
     info!(
-        path = %config.config_path.display(),
-        mode = if config.server { "server" } else { "client" },
-        "starting Rathole instance"
+        mode = %match mode {
+            InstanceMode::Server => "server",
+            InstanceMode::Client => "client",
+        },
+        "starting Rathole instance",
     );
 
     let handle = thread::Builder::new()
@@ -45,7 +44,7 @@ pub fn spawn_rathole(config: &PortMappingConfig) -> Result<RatholeHandle> {
                 .build()
                 .expect("failed to create Rathole runtime");
             runtime.block_on(async move {
-                if let Err(err) = rathole::run(cli, shutdown_rx).await {
+                if let Err(err) = rathole::run_with_config(config, mode, shutdown_rx).await {
                     error!(?err, "Rathole terminated with error");
                 }
             });

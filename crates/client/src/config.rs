@@ -1,25 +1,13 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use anyhow::{Context, Result};
+use laval_model::PortMappingSpec;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct ClientConfig {
-    pub port_mapping: PortMappingConfig,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct PortMappingConfig {
-    pub config_path: PathBuf,
-    #[serde(default = "PortMappingConfig::default_is_server")]
-    pub server: bool,
-}
-
-impl PortMappingConfig {
-    const fn default_is_server() -> bool {
-        false
-    }
+    pub port_mapping: PortMappingSpec,
 }
 
 impl ClientConfig {
