@@ -1,0 +1,22 @@
+[package]
+name = "laval-node"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+toml = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+url = { workspace = true }
+pingora = { workspace = true }
+pingora-core = { workspace = true }
+pingora-proxy = { workspace = true }
+pingora-error = { workspace = true }
+rathole = { workspace = true }
+parking_lot = { workspace = true }
+async-trait = { workspace = true }
+bytes = { workspace = true }
