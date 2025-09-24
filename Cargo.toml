@@ -1,6 +1,45 @@
-[package]
-name = "laval"
-version = "0.1.0"
-edition = "2024"
+[workspace]
+members = [
+    "crates/node",
+    "crates/client",
+    "crates/manager",
+]
+resolver = "2"
 
-[dependencies]
+[workspace.package]
+edition = "2021"
+license = "Apache-2.0"
+authors = ["Laval Platform"]
+
+[workspace.dependencies]
+anyhow = "1"
+axum = { version = "0.7", features = ["macros"] }
+bytes = "1"
+clap = { version = "4.5", features = ["derive"] }
+parking_lot = "0.12"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "fs"] }
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+url = "2"
+thiserror = "1"
+async-trait = "0.1"
+http = "1"
+log = "0.4"
+derivative = "2"
+h2 = "0.4"
+once_cell = "1"
+lru = "0.14"
+ahash = "0.8"
+httparse = "1"
+
+# path dependencies for third-party crates shipped with the repository
+pingora = { path = "thirdparty/pingora/pingora", default-features = false, features = ["proxy", "rustls", "time"] }
+pingora-core = { path = "thirdparty/pingora/pingora-core", default-features = false, features = ["rustls"] }
+pingora-proxy = { path = "thirdparty/pingora/pingora-proxy", default-features = false, features = ["rustls"] }
+pingora-http = { path = "thirdparty/pingora/pingora-http" }
+pingora-error = { path = "thirdparty/pingora/pingora-error" }
+rathole = { path = "thirdparty/rathole", default-features = false, features = ["server", "client", "noise"] }
+
