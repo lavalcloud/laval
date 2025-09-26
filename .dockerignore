@@ -1,0 +1,11 @@
+# Ignore files not needed for Docker builds
+node_modules
+.git
+.target
+target
+Dockerfile
+**/.DS_Store
+**/dist
+**/build
+**/tmp
+**/*.log

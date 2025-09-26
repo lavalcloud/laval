@@ -1,0 +1,130 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: laval-db-secret
+type: Opaque
+data:
+  postgres-password: bGF2YWw=
+  database-url: cG9zdGdyZXM6Ly9sYXZhbDpsYXZhbEBsYXZhbC1kYjo1NDMyL2xhdmFs
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: laval-db-init
+data:
+  01-create-pg-duckdb.sql: |
+    CREATE EXTENSION IF NOT EXISTS pg_duckdb;
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: laval-db
+  labels:
+    app: laval-db
+spec:
+  clusterIP: None
+  selector:
+    app: laval-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: laval-db
+spec:
+  serviceName: laval-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: laval-db
+  template:
+    metadata:
+      labels:
+        app: laval-db
+    spec:
+      containers:
+        - name: postgres
+          image: pgduckdb/pgduckdb:17-v1.0.0
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_DB
+              value: laval
+            - name: POSTGRES_USER
+              value: laval
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: laval-db-secret
+                  key: postgres-password
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init-sql
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: init-sql
+          configMap:
+            name: laval-db-init
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: laval-manager
+  labels:
+    app: laval-manager
+spec:
+  selector:
+    app: laval-manager
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+    - name: grpc
+      port: 50051
+      targetPort: 50051
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: laval-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: laval-manager
+  template:
+    metadata:
+      labels:
+        app: laval-manager
+    spec:
+      containers:
+        - name: laval-manager
+          image: ${LAVAL_MANAGER_IMAGE}
+          imagePullPolicy: Always
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: laval-db-secret
+                  key: database-url
+            - name: RUST_LOG
+              value: info
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 50051
+              name: grpc
