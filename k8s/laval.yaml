@@ -130,3 +130,39 @@ spec:
               name: http
             - containerPort: 50051
               name: grpc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: laval-frontend
+  labels:
+    app: laval-frontend
+spec:
+  selector:
+    app: laval-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: laval-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: laval-frontend
+  template:
+    metadata:
+      labels:
+        app: laval-frontend
+    spec:
+      containers:
+        - name: laval-frontend
+          image: ${LAVAL_FRONTEND_IMAGE}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+              name: http
