@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 FROM node:20-alpine AS builder
 WORKDIR /app
 
@@ -13,7 +11,11 @@ COPY thirdparty ./thirdparty
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter frontend run build
 
-FROM nginx:alpine AS runtime
-COPY --from=builder /app/packages/frontend/dist /usr/share/nginx/html
+FROM caddy:alpine AS runtime
+
+COPY --from=builder /app/packages/frontend/dist /usr/share/caddy
+
+COPY Caddyfile /etc/caddy/Caddyfile
+
 EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
