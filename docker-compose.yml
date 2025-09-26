@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:16
+    image: pgduckdb/pgduckdb:17-v1.0.0
     environment:
       POSTGRES_USER: laval
       POSTGRES_PASSWORD: laval
@@ -9,5 +9,24 @@ services:
       - "5432:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  manager:
+    build:
+      context: .
+      dockerfile: crates/manager/Dockerfile
+    environment:
+      DATABASE_URL: postgres://laval:laval@db:5432/laval
+      RUST_LOG: info
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+      - "50051:50051"
 volumes:
   db-data:
