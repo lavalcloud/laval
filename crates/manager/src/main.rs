@@ -1,4 +1,5 @@
 mod config;
+mod entity;
 mod error;
 
 use std::net::SocketAddr;
@@ -40,6 +41,8 @@ impl NodeManager for GrpcService {
         let record = self
             .state
             .get(&name)
+            .await
+            .map_err(|err| Status::internal(format!("failed to fetch node '{name}': {err}")))?
             .ok_or_else(|| Status::not_found(format!("node '{name}' not found")))?;
 
         let port_mapping = match record.port_mapping.as_ref() {
@@ -68,6 +71,9 @@ struct Cli {
     /// Address to bind the gRPC server
     #[arg(long, default_value = "0.0.0.0:50051")]
     grpc_bind: SocketAddr,
+    /// Database connection string
+    #[arg(long, env = "DATABASE_URL")]
+    database_url: String,
 }
 
 #[tokio::main]
@@ -83,9 +89,10 @@ async fn main() -> Result<()> {
         config,
         bind,
         grpc_bind,
+        database_url,
     } = cli;
 
-    let state = Arc::new(ManagerState::initialize(config.clone()).await?);
+    let state = Arc::new(ManagerState::initialize(config, database_url).await?);
 
     let http_state = state.clone();
     let http_server = HttpServer::new(move || {
@@ -160,7 +167,8 @@ async fn health() -> HttpResponse {
 }
 
 async fn list_nodes(state: web::Data<SharedState>) -> AppResult<web::Json<Vec<NodeRecord>>> {
-    Ok(web::Json(state.list()))
+    let nodes = state.list().await.map_err(AppError::from)?;
+    Ok(web::Json(nodes))
 }
 
 async fn get_node(
@@ -168,7 +176,7 @@ async fn get_node(
     state: web::Data<SharedState>,
 ) -> AppResult<web::Json<NodeRecord>> {
     let name = name.into_inner();
-    match state.get(&name) {
+    match state.get(&name).await.map_err(AppError::from)? {
         Some(node) => Ok(web::Json(node)),
         None => Err(AppError::not_found(format!("node '{name}' not found"))),
     }
@@ -181,7 +189,10 @@ async fn create_node(
     let mut payload = payload.into_inner();
     validate_name(&payload.name)?;
     payload.name = payload.name.trim().to_string();
-    state.upsert(payload.clone()).await?;
+    state
+        .upsert(payload.clone())
+        .await
+        .map_err(AppError::from)?;
     Ok(HttpResponse::Created().json(payload))
 }
 
@@ -194,7 +205,10 @@ async fn update_node(
     let mut payload = payload.into_inner();
     validate_name(&name)?;
     payload.name = name.trim().to_string();
-    state.upsert(payload.clone()).await?;
+    state
+        .upsert(payload.clone())
+        .await
+        .map_err(AppError::from)?;
     Ok(HttpResponse::Ok().json(payload))
 }
 
@@ -203,7 +217,7 @@ async fn delete_node(
     state: web::Data<SharedState>,
 ) -> AppResult<HttpResponse> {
     let name = name.into_inner();
-    if state.remove(name.trim()).await? {
+    if state.remove(name.trim()).await.map_err(AppError::from)? {
         Ok(HttpResponse::NoContent().finish())
     } else {
         Err(AppError::not_found("node not found"))
