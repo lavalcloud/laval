@@ -141,9 +141,9 @@ spec:
   selector:
     app: laval-frontend
   ports:
-    - name: http
-      port: 80
-      targetPort: 80
+    - name: https
+      port: 443
+      targetPort: 443
 ---
 apiVersion: apps/v1
 kind: Deployment
