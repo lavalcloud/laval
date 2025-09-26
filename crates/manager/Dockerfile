@@ -1,11 +1,7 @@
-# syntax=docker/dockerfile:1
-
-FROM rust:1.75-slim AS builder
+FROM rust:alpine AS builder
 WORKDIR /app
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends pkg-config libssl-dev libpq-dev ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache openssl protoc cmake musl-dev
 
 # Cache dependencies
 COPY Cargo.toml Cargo.lock ./
@@ -13,10 +9,8 @@ COPY crates ./crates
 COPY thirdparty ./thirdparty
 RUN cargo build --release -p laval-manager
 
-FROM debian:bookworm-slim AS runtime
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates libssl3 libpq5 \
-    && rm -rf /var/lib/apt/lists/*
+FROM alpine AS runtime
+
 WORKDIR /app
 
 COPY --from=builder /app/target/release/laval-manager /usr/local/bin/laval-manager
