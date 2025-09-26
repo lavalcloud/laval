@@ -3,9 +3,15 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use laval_model::PortMappingSpec;
-use parking_lot::RwLock;
+use sea_orm::sea_query::TableCreateStatement;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, Database, DatabaseConnection, EntityTrait,
+    IntoActiveModel, QueryFilter, Schema, Set,
+};
 use serde::{Deserialize, Serialize};
 use tokio::fs;
+
+use crate::entity::node;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct ManagerConfig {
@@ -38,57 +44,120 @@ impl ManagerConfig {
         let cfg = toml::from_str(&raw).context("invalid manager configuration")?;
         Ok(cfg)
     }
-
-    pub async fn save(&self, path: impl AsRef<Path>) -> Result<()> {
-        let path = path.as_ref();
-        let content = toml::to_string_pretty(self)?;
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).await?;
-        }
-        fs::write(path, content)
-            .await
-            .with_context(|| format!("failed to write manager config at {}", path.display()))
-    }
 }
 
 pub struct ManagerState {
-    path: PathBuf,
-    nodes: RwLock<HashMap<String, NodeRecord>>,
+    db: DatabaseConnection,
 }
 
 impl ManagerState {
-    pub async fn initialize(path: PathBuf) -> Result<Self> {
+    pub async fn initialize(path: PathBuf, database_url: String) -> Result<Self> {
         let config = ManagerConfig::load(&path).await?;
-        Ok(Self {
-            path,
-            nodes: RwLock::new(config.nodes),
-        })
+        let db = Database::connect(&database_url)
+            .await
+            .with_context(|| format!("failed to connect to database at {database_url}"))?;
+        Self::run_migrations(&db).await?;
+
+        let state = Self { db };
+        for node in config.nodes.into_values() {
+            state.upsert(node).await?;
+        }
+        Ok(state)
     }
 
-    pub fn list(&self) -> Vec<NodeRecord> {
-        self.nodes.read().values().cloned().collect::<Vec<_>>()
+    async fn run_migrations(db: &DatabaseConnection) -> Result<()> {
+        let backend = db.get_database_backend();
+        let schema = Schema::new(backend);
+        let mut table: TableCreateStatement = schema.create_table_from_entity(node::Entity);
+        db.execute(backend.build(table.if_not_exists()))
+            .await
+            .context("failed to run manager migrations")?;
+        Ok(())
     }
 
-    pub fn get(&self, name: &str) -> Option<NodeRecord> {
-        self.nodes.read().get(name).cloned()
+    pub async fn list(&self) -> Result<Vec<NodeRecord>> {
+        let models = node::Entity::find().all(&self.db).await?;
+        models
+            .into_iter()
+            .map(model_to_record)
+            .collect::<Result<Vec<_>>>()
+    }
+
+    pub async fn get(&self, name: &str) -> Result<Option<NodeRecord>> {
+        let model = node::Entity::find()
+            .filter(node::Column::Name.eq(name))
+            .one(&self.db)
+            .await?;
+        model.map(model_to_record).transpose()
     }
 
     pub async fn upsert(&self, node: NodeRecord) -> Result<()> {
-        self.nodes.write().insert(node.name.clone(), node);
-        self.persist().await
+        let tags_value = if node.tags.is_empty() {
+            None
+        } else {
+            Some(serde_json::to_value(&node.tags)?)
+        };
+        let port_mapping_value = match &node.port_mapping {
+            Some(spec) => Some(serde_json::to_value(spec)?),
+            None => None,
+        };
+
+        if let Some(existing) = node::Entity::find()
+            .filter(node::Column::Name.eq(node.name.clone()))
+            .one(&self.db)
+            .await?
+        {
+            let mut active: node::ActiveModel = existing.into_active_model();
+            active.reverse_proxy_bind = Set(node.reverse_proxy_bind.clone());
+            active.port_mapping_role = Set(node.port_mapping_role.clone());
+            active.management_url = Set(node.management_url.clone());
+            active.description = Set(node.description.clone());
+            active.tags = Set(tags_value.clone());
+            active.port_mapping = Set(port_mapping_value.clone());
+            active.update(&self.db).await?;
+        } else {
+            let active = node::ActiveModel {
+                name: Set(node.name.clone()),
+                reverse_proxy_bind: Set(node.reverse_proxy_bind.clone()),
+                port_mapping_role: Set(node.port_mapping_role.clone()),
+                management_url: Set(node.management_url.clone()),
+                description: Set(node.description.clone()),
+                tags: Set(tags_value.clone()),
+                port_mapping: Set(port_mapping_value.clone()),
+                ..Default::default()
+            };
+            active.insert(&self.db).await?;
+        }
+
+        Ok(())
     }
 
     pub async fn remove(&self, name: &str) -> Result<bool> {
-        let removed = self.nodes.write().remove(name).is_some();
-        if removed {
-            self.persist().await?;
-        }
-        Ok(removed)
+        let result = node::Entity::delete_many()
+            .filter(node::Column::Name.eq(name))
+            .exec(&self.db)
+            .await?;
+        Ok(result.rows_affected > 0)
     }
+}
 
-    async fn persist(&self) -> Result<()> {
-        let snapshot = self.nodes.read().clone();
-        let cfg = ManagerConfig { nodes: snapshot };
-        cfg.save(&self.path).await
-    }
+fn model_to_record(model: node::Model) -> Result<NodeRecord> {
+    let tags = match model.tags {
+        Some(value) => serde_json::from_value(value)?,
+        None => Vec::new(),
+    };
+    let port_mapping = match model.port_mapping {
+        Some(value) => Some(serde_json::from_value(value)?),
+        None => None,
+    };
+
+    Ok(NodeRecord {
+        name: model.name,
+        reverse_proxy_bind: model.reverse_proxy_bind,
+        port_mapping_role: model.port_mapping_role,
+        management_url: model.management_url,
+        description: model.description,
+        tags,
+        port_mapping,
+    })
 }
