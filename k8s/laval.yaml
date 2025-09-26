@@ -70,6 +70,10 @@ spec:
         - name: init-sql
           configMap:
             name: laval-db-init
+      securityContext:
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
   volumeClaimTemplates:
     - metadata:
         name: data
