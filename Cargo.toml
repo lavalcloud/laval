@@ -15,6 +15,8 @@ authors = ["Laval Platform"]
 
 [workspace.dependencies]
 anyhow = "1"
+actix-web = { version = "4", features = ["macros"] }
+actix-cors = "0.7"
 axum = { version = "0.7", features = ["macros"] }
 bytes = "1"
 clap = { version = "4.5", features = ["derive"] }
@@ -45,5 +47,7 @@ pingora-http = { path = "thirdparty/pingora/pingora-http" }
 pingora-error = { path = "thirdparty/pingora/pingora-error" }
 rathole = { path = "crates/rathole", default-features = false, features = ["server", "client", "noise"] }
 tonic = { version = "0.11", features = ["transport"] }
+tonic-web = "0.11"
+tower-http = { version = "0.4", features = ["cors"] }
 prost = "0.12"
 
