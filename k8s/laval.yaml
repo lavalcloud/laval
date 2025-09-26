@@ -45,6 +45,8 @@ spec:
       labels:
         app: laval-db
     spec:
+      securityContext:
+        fsGroup: 999
       containers:
         - name: postgres
           image: pgduckdb/pgduckdb:17-v1.0.0
