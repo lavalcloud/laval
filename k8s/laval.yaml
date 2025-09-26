@@ -164,5 +164,5 @@ spec:
           image: ${LAVAL_FRONTEND_IMAGE}
           imagePullPolicy: Always
           ports:
-            - containerPort: 80
-              name: http
+            - containerPort: 443
+              name: https
