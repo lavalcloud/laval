@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide && rsbuild build",
+    "build": "rsbuild build",
     "check": "biome check --write",
     "dev": "rsbuild dev --open",
     "format": "biome format --write",
@@ -67,7 +67,6 @@
     "zod": "^4.1.11"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.2.3",
     "@bufbuild/buf": "^1.57.2",
     "@bufbuild/protoc-gen-es": "^2.9.0",
     "@rsbuild/core": "^1.5.6",
