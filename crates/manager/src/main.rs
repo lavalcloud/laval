@@ -5,11 +5,9 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use actix_cors::Cors;
+use actix_web::{http::Method, web, App, HttpResponse, HttpServer};
 use anyhow::{Error, Result};
-use axum::extract::{Path, State};
-use axum::http::StatusCode;
-use axum::routing::get;
-use axum::{serve, Json, Router};
 use clap::Parser;
 use config::{ManagerState, NodeRecord};
 use error::{AppError, AppResult};
@@ -19,8 +17,9 @@ use laval_proto::manager::v1::{
     GetNodeConfigRequest, GetNodeConfigResponse, PortMappingConfig as ProtoPortMappingConfig,
     PortMappingMode as ProtoPortMappingMode,
 };
-use tokio::net::TcpListener;
 use tonic::{async_trait, transport::Server, Request, Response, Status};
+use tonic_web::GrpcWebLayer;
+use tower_http::cors::{Any, CorsLayer};
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
@@ -88,30 +87,53 @@ async fn main() -> Result<()> {
 
     let state = Arc::new(ManagerState::initialize(config.clone()).await?);
 
-    let app = Router::new()
-        .route("/health", get(health))
-        .route("/nodes", get(list_nodes).post(create_node))
-        .route(
-            "/nodes/:name",
-            get(get_node).put(update_node).delete(delete_node),
-        )
-        .with_state(state.clone());
+    let http_state = state.clone();
+    let http_server = HttpServer::new(move || {
+        let cors = Cors::default()
+            .allow_any_origin()
+            .allow_any_method()
+            .allow_any_header();
+
+        App::new()
+            .wrap(cors)
+            .app_data(web::Data::new(http_state.clone()))
+            .route("/health", web::get().to(health))
+            .service(
+                web::scope("/nodes")
+                    .route("", web::get().to(list_nodes))
+                    .route("", web::post().to(create_node))
+                    .route("/{name}", web::get().to(get_node))
+                    .route("/{name}", web::put().to(update_node))
+                    .route("/{name}", web::delete().to(delete_node)),
+            )
+    })
+    .bind(bind)?
+    .run();
 
     let grpc_state = state.clone();
 
-    let http_server = async move {
-        info!(bind = %bind, "starting manager HTTP API");
-        let listener = TcpListener::bind(bind).await?;
-        serve(listener, app).await?;
+    let grpc_server = async move {
+        info!(bind = %grpc_bind, "starting manager gRPC API");
+        let cors = CorsLayer::new()
+            .allow_origin(Any)
+            .allow_methods([Method::POST])
+            .allow_headers(Any);
+
+        Server::builder()
+            .accept_http1(true)
+            .layer(cors)
+            .layer(GrpcWebLayer::new())
+            .add_service(tonic_web::enable(NodeManagerServer::new(GrpcService {
+                state: grpc_state,
+            })))
+            .serve(grpc_bind)
+            .await?;
         Ok::<(), Error>(())
     };
 
-    let grpc_server = async move {
-        info!(bind = %grpc_bind, "starting manager gRPC API");
-        Server::builder()
-            .add_service(NodeManagerServer::new(GrpcService { state: grpc_state }))
-            .serve(grpc_bind)
-            .await?;
+    let http_server = async move {
+        info!(bind = %bind, "starting manager HTTP API");
+        http_server.await?;
         Ok::<(), Error>(())
     };
 
@@ -133,51 +155,56 @@ fn port_mapping_to_proto(
     Ok(ProtoPortMappingConfig { mode, config_json })
 }
 
-async fn health() -> &'static str {
-    "ok"
+async fn health() -> HttpResponse {
+    HttpResponse::Ok().body("ok")
 }
 
-async fn list_nodes(State(state): State<SharedState>) -> AppResult<Json<Vec<NodeRecord>>> {
-    Ok(Json(state.list()))
+async fn list_nodes(state: web::Data<SharedState>) -> AppResult<web::Json<Vec<NodeRecord>>> {
+    Ok(web::Json(state.list()))
 }
 
 async fn get_node(
-    Path(name): Path<String>,
-    State(state): State<SharedState>,
-) -> AppResult<Json<NodeRecord>> {
+    name: web::Path<String>,
+    state: web::Data<SharedState>,
+) -> AppResult<web::Json<NodeRecord>> {
+    let name = name.into_inner();
     match state.get(&name) {
-        Some(node) => Ok(Json(node)),
+        Some(node) => Ok(web::Json(node)),
         None => Err(AppError::not_found(format!("node '{name}' not found"))),
     }
 }
 
 async fn create_node(
-    State(state): State<SharedState>,
-    Json(mut payload): Json<NodeRecord>,
-) -> AppResult<(StatusCode, Json<NodeRecord>)> {
+    state: web::Data<SharedState>,
+    payload: web::Json<NodeRecord>,
+) -> AppResult<HttpResponse> {
+    let mut payload = payload.into_inner();
     validate_name(&payload.name)?;
     payload.name = payload.name.trim().to_string();
     state.upsert(payload.clone()).await?;
-    Ok((StatusCode::CREATED, Json(payload)))
+    Ok(HttpResponse::Created().json(payload))
 }
 
 async fn update_node(
-    Path(name): Path<String>,
-    State(state): State<SharedState>,
-    Json(mut payload): Json<NodeRecord>,
-) -> AppResult<Json<NodeRecord>> {
+    name: web::Path<String>,
+    state: web::Data<SharedState>,
+    payload: web::Json<NodeRecord>,
+) -> AppResult<HttpResponse> {
+    let name = name.into_inner();
+    let mut payload = payload.into_inner();
     validate_name(&name)?;
     payload.name = name.trim().to_string();
     state.upsert(payload.clone()).await?;
-    Ok(Json(payload))
+    Ok(HttpResponse::Ok().json(payload))
 }
 
 async fn delete_node(
-    Path(name): Path<String>,
-    State(state): State<SharedState>,
-) -> AppResult<StatusCode> {
+    name: web::Path<String>,
+    state: web::Data<SharedState>,
+) -> AppResult<HttpResponse> {
+    let name = name.into_inner();
     if state.remove(name.trim()).await? {
-        Ok(StatusCode::NO_CONTENT)
+        Ok(HttpResponse::NoContent().finish())
     } else {
         Err(AppError::not_found("node not found"))
     }
