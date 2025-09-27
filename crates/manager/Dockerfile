@@ -21,6 +21,7 @@ RUN --mount=type=cache,id=manager-sccache,target=/sccache,sharing=locked \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/app/target \
     cargo build --release -p laval-manager && \
+    mkdir -p /binout && \
     cp /app/target/release/laval-manager /binout/
 
 FROM alpine AS runtime
