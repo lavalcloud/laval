@@ -20,13 +20,14 @@ RUN --mount=type=cache,id=manager-sccache,target=/sccache,sharing=locked \
     --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/app/target \
-    cargo build --release -p laval-manager
+    cargo build --release -p laval-manager && \
+    cp /app/target/release/laval-manager /binout/
 
 FROM alpine AS runtime
 
 WORKDIR /app
 
-COPY --from=builder /app/target/release/laval-manager /usr/local/bin/laval-manager
+COPY --from=builder /binout/laval-manager /usr/local/bin/laval-manager
 
 ENV RUST_LOG=info
 EXPOSE 8080 50051
