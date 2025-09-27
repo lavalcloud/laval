@@ -3,9 +3,12 @@
 FROM rust:alpine AS builder
 WORKDIR /app
 
-RUN apk add --no-cache openssl protoc cmake musl-dev curl bash
+RUN apk add --no-cache openssl protoc cmake musl-dev curl bash clang
 RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
-RUN cargo binstall sccache
+RUN cargo binstall sccache wild-linker
+
+RUN echo '[target.x86_64-unknown-linux-gnu]\nlinker = "clang"\nrustflags = ["-Clink-arg=--ld-path=wild"]' > /usr/local/cargo/config.toml
+
 
 ENV RUSTC_WRAPPER="/usr/local/cargo/bin/sccache" \
     SCCACHE_DIR="/sccache" \
