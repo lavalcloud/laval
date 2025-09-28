@@ -193,13 +193,7 @@ spec:
   hostnames:
     - "${LAVAL_DOMAIN}"
   rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /api
-      backendRefs:
-        - name: laval-manager
-          port: 8080
     - backendRefs:
         - name: laval-frontend
+          namespace: default
           port: 80
