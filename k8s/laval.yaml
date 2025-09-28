@@ -174,15 +174,10 @@ metadata:
 spec:
   gatewayClassName: istio
   listeners:
-    - name: https
+    - name: http
       hostname: "${LAVAL_DOMAIN}"
-      port: 443
-      protocol: HTTPS
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            name: laval-gateway-cert
+      port: 80
+      protocol: HTTP
       allowedRoutes:
         namespaces:
           from: Same
@@ -194,7 +189,7 @@ metadata:
 spec:
   parentRefs:
     - name: laval-gateway
-      sectionName: https
+      sectionName: http
   hostnames:
     - "${LAVAL_DOMAIN}"
   rules:
