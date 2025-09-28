@@ -102,8 +102,9 @@ jobs:
         env:
           LAVAL_MANAGER_IMAGE: ${{ needs.build-manager.outputs.manager_image }}
           LAVAL_FRONTEND_IMAGE: ${{ needs.build-frontend.outputs.frontend_image }}
+          LAVAL_DOMAIN: ${{ secrets.LAVAL_DOMAIN }}
         run: |
-          envsubst < k8s/laval.yaml > k8s/laval.rendered.yaml
+          envsubst '${LAVAL_MANAGER_IMAGE} ${LAVAL_FRONTEND_IMAGE} ${LAVAL_DOMAIN}' < k8s/laval.yaml > k8s/laval.rendered.yaml
           cat k8s/laval.rendered.yaml
 
       - name: Apply manifests

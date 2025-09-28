@@ -141,9 +141,9 @@ spec:
   selector:
     app: laval-frontend
   ports:
-    - name: https
-      port: 443
-      targetPort: 443
+    - name: http
+      port: 80
+      targetPort: 80
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -164,5 +164,47 @@ spec:
           image: ${LAVAL_FRONTEND_IMAGE}
           imagePullPolicy: Always
           ports:
-            - containerPort: 443
-              name: https
+            - containerPort: 80
+              name: http
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: laval-gateway
+spec:
+  gatewayClassName: istio
+  listeners:
+    - name: https
+      hostname: "${LAVAL_DOMAIN}"
+      port: 443
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: laval-gateway-cert
+      allowedRoutes:
+        namespaces:
+          from: Same
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: laval-gateway-route
+spec:
+  parentRefs:
+    - name: laval-gateway
+      sectionName: https
+  hostnames:
+    - "${LAVAL_DOMAIN}"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api
+      backendRefs:
+        - name: laval-manager
+          port: 8080
+    - backendRefs:
+        - name: laval-frontend
+          port: 80
