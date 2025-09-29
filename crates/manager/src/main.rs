@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use actix_cors::Cors;
-use actix_web::{http::Method, web, App, HttpResponse, HttpServer};
+use actix_web::{web, App, HttpResponse, HttpServer};
 use anyhow::{Error, Result};
 use clap::Parser;
 use config::{ManagerState, NodeRecord};
@@ -123,16 +123,16 @@ async fn main() -> Result<()> {
         info!(bind = %grpc_bind, "starting manager gRPC API");
         let cors = CorsLayer::new()
             .allow_origin(Any)
-            .allow_methods([Method::POST])
+            .allow_methods(vec![http::Method::GET, http::Method::POST, http::Method::OPTIONS])
             .allow_headers(Any);
 
         Server::builder()
             .accept_http1(true)
             .layer(cors)
             .layer(GrpcWebLayer::new())
-            .add_service(tonic_web::enable(NodeManagerServer::new(GrpcService {
+            .add_service(NodeManagerServer::new(GrpcService {
                 state: grpc_state,
-            })))
+            }))
             .serve(grpc_bind)
             .await?;
         Ok::<(), Error>(())

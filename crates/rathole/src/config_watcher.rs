@@ -15,6 +15,7 @@ use tracing::{error, info, instrument};
 use notify::{EventKind, RecursiveMode, Watcher};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+#[allow(dead_code)]
 pub enum ConfigChange {
     General(Box<Config>), // Trigger a full restart
     ServerChange(ServerServiceChange),
@@ -22,17 +23,20 @@ pub enum ConfigChange {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+#[allow(dead_code)]
 pub enum ClientServiceChange {
     Add(ClientServiceConfig),
     Delete(String),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+#[allow(dead_code)]
 pub enum ServerServiceChange {
     Add(ServerServiceConfig),
     Delete(String),
 }
 
+#[allow(dead_code)]
 trait InstanceConfig: Clone {
     type ServiceConfig: PartialEq + Eq + Clone;
     fn equal_without_service(&self, rhs: &Self) -> bool;
@@ -199,6 +203,7 @@ async fn config_watcher(
     Ok(())
 }
 
+#[allow(dead_code)]
 fn calculate_events(old: &Config, new: &Config) -> Option<Vec<ConfigChange>> {
     if old == new {
         return None;
@@ -236,6 +241,7 @@ fn calculate_events(old: &Config, new: &Config) -> Option<Vec<ConfigChange>> {
 }
 
 // None indicates a General change needed
+#[allow(dead_code)]
 fn calculate_instance_config_events<T: InstanceConfig>(
     old: &T,
     new: &T,
