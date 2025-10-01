@@ -99,7 +99,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Set kubectl context
-        uses: azure/k8s-set-context@main
+        uses: azure/k8s-set-context@v4.0.1
         with:
           kubeconfig: ${{ secrets.KUBE_CONFIG }}
           kubeconfig-encoding: base64
