@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: laval-frontend
+  labels:
+    app: laval-frontend
+spec:
+  selector:
+    app: laval-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80

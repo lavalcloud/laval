@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: laval-frontend
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  selector:
+    matchLabels:
+      app: laval-frontend
+  template:
+    metadata:
+      labels:
+        app: laval-frontend
+    spec:
+      containers:
+        - name: laval-frontend
+          image: {{ .Values.frontend.image }}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+              name: http

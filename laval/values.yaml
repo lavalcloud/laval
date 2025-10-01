@@ -1,0 +1,28 @@
+# Default values for laval.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Database configuration
+db:
+  user: laval
+  password: laval
+  database: laval
+  storage: 1Gi
+
+# Manager service configuration
+manager:
+  image: laval-manager:latest
+  replicas: 1
+  logLevel: info
+
+# Frontend service configuration
+frontend:
+  image: laval-frontend:latest
+  replicas: 1
+
+# Domain for Gateway
+domain: example.com
+
+# Global configuration
+global:
+  # Add any global overrides here

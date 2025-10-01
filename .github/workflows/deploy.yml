@@ -98,18 +98,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Render Kubernetes manifests
-        env:
-          LAVAL_MANAGER_IMAGE: ${{ needs.build-manager.outputs.manager_image }}
-          LAVAL_FRONTEND_IMAGE: ${{ needs.build-frontend.outputs.frontend_image }}
-          LAVAL_DOMAIN: ${{ secrets.LAVAL_DOMAIN }}
-        run: |
-          envsubst '${LAVAL_MANAGER_IMAGE} ${LAVAL_FRONTEND_IMAGE} ${LAVAL_DOMAIN}' < k8s/laval.yaml > k8s/laval.rendered.yaml
-          cat k8s/laval.rendered.yaml
-
-      - name: Apply manifests
-        uses: actions-hub/kubectl@master
-        env:
-          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+      - name: Set kubectl context
+        uses: azure/k8s-set-context@v3
         with:
-          args: apply -f k8s/laval.rendered.yaml
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.19.0
+
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install laval ./laval \
+            --set manager.image=${{ needs.build-manager.outputs.manager_image }} \
+            --set frontend.image=${{ needs.build-frontend.outputs.frontend_image }} \
+            --set domain=${{ secrets.LAVAL_DOMAIN }}

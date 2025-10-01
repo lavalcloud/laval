@@ -1,0 +1,15 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: laval-gateway-route
+spec:
+  parentRefs:
+    - name: laval-gateway
+      sectionName: http
+  hostnames:
+    - "{{ .Values.domain }}"
+  rules:
+    - backendRefs:
+        - name: laval-frontend
+          namespace: default
+          port: 80
