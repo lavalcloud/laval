@@ -111,6 +111,7 @@ jobs:
       - name: Deploy with Helm
         run: |
           helm upgrade --install laval ./laval \
+            --insecure-skip-tls-verify \
             --set manager.image=${{ needs.build-manager.outputs.manager_image }} \
             --set frontend.image=${{ needs.build-frontend.outputs.frontend_image }} \
             --set domain=${{ secrets.LAVAL_DOMAIN }}
