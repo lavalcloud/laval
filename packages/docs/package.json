@@ -13,7 +13,7 @@
     "rspress": "^1.40.2"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
-    "@types/node": "^18.11.17"
+    "@biomejs/biome": "2.2.5",
+    "@types/node": "24.6.2"
   }
 }

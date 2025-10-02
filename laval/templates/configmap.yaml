@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: laval-db-init
-data:
-  01-create-pg-duckdb.sql: |
-    CREATE EXTENSION IF NOT EXISTS pg_duckdb;
