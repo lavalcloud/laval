@@ -98,11 +98,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Set kubectl context
-        uses: azure/k8s-set-context@v4.0.1
+      - uses: tale/kubectl-action@v1
         with:
-          kubeconfig: ${{ secrets.KUBE_CONFIG }}
-          kubeconfig-encoding: base64
+          base64-kube-config: ${{ secrets.KUBE_CONFIG }}
 
       - name: Deploy with Helm
         run: |
